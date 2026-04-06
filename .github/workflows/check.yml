@@ -1,22 +1,21 @@
 name: tokudane-check
-name: tokudane-check
 
 on:
- workflow_dispatch:
- schedule:
-  - cron: "*/5 * * * *"
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 jobs:
- check:
-  runs-on: ubuntu-latest
+  check:
+    runs-on: ubuntu-latest
 
-  steps:
-   - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
 
-   - name: Setup Python
-     uses: actions/setup-python@v4
-     with:
-      python-version: '3.10'
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-   - name: Run script
-     run: python check_tokudane.py
+      - name: Run script
+        run: python check_tokudane.py

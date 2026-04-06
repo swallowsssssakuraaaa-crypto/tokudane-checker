@@ -1,6 +1,8 @@
 name: tokudane-check
+name: tokudane-check
 
 on:
+ workflow_dispatch:
  schedule:
   - cron: "*/5 * * * *"
 

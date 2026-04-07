@@ -1,14 +1,28 @@
-import json
+import os
 import requests
 
-print("Tokudane checker running")
+LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
+USER_ID = os.getenv("LINE_USER_ID")
 
-with open("conditions.json") as f:
-    data = json.load(f)
+def send_line(message):
+    url = "https://api.line.me/v2/bot/message/push"
+    headers = {
+        "Authorization": f"Bearer {LINE_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
-for route in data["routes"]:
-    print(f'Checking {route["from"]} → {route["to"]}')
-    
-    # 仮チェック（あとでえきねっと検索に変更）
-    if route["from"] == "東京" and route["to"] == "富山":
-        print("Tokudane 30% chance detected!")
+    data = {
+        "to": USER_ID,
+        "messages":[
+            {
+                "type":"text",
+                "text": message
+            }
+        ]
+    }
+
+    requests.post(url, headers=headers, json=data)
+
+
+# テストメッセージ
+send_line("🚄 トクだ値監視システムが正常に動いています")

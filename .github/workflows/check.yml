@@ -3,7 +3,7 @@ name: tokudane-check
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: '*/10 * * * *'
 
 jobs:
   check:
@@ -15,7 +15,10 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
+
+      - name: Install requests
+        run: pip install requests
 
       - name: Run script
         run: python check_tokudane.py

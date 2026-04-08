@@ -2,25 +2,31 @@ name: tokudane-check
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
-  workflow_dispatch:
+    - cron: '0 * * * *'   # 1時間ごと
+  workflow_dispatch:       # 手動実行
 
 jobs:
   run:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: リポジトリ取得
+        uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
+      - name: Pythonセットアップ
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - run: pip install playwright requests
+      - name: ライブラリインストール
+        run: |
+          pip install requests
+          pip install playwright
 
-      - run: playwright install
+      - name: Playwrightブラウザ準備
+        run: playwright install
 
-      - name: run bot
+      - name: Bot実行
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

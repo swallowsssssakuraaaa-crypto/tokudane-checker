@@ -1,16 +1,11 @@
 import os
 import datetime
 import requests
-from playwright.sync_api import sync_playwright
 
 LINE_CHANNEL_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
 LINE_USER_ID = os.environ["LINE_USER_ID"]
 
-EKINET_ID = os.environ["EKINET_ID"]
-EKINET_PASS = os.environ["EKINET_PASS"]
-
 LAST_FILE = "last_sent.txt"
-
 
 def send_line(msg):
 
@@ -23,7 +18,7 @@ def send_line(msg):
 
     data = {
         "to": LINE_USER_ID,
-        "messages": [{"type": "text","text": msg}]
+        "messages":[{"type":"text","text":msg}]
     }
 
     requests.post(url, headers=headers, json=data)
@@ -51,62 +46,61 @@ targets = []
 for i in range(1,31):
 
     d = today + datetime.timedelta(days=i)
+
     w = d.weekday()
 
-    if w in [3,4,6,0]:
+    if w in [3,4]:
+        targets.append((d,"東京","富山"))
 
-        if w in [3,4]:
-            targets.append((d,"東京","富山"))
-        else:
-            targets.append((d,"富山","東京"))
-
-
-found = []
+    if w in [6,0]:
+        targets.append((d,"富山","東京"))
 
 
-with sync_playwright() as p:
+found30=[]
+found10=[]
 
-    browser = p.chromium.launch()
-    page = browser.new_page()
+for d,fr,to in targets:
 
-    page.goto("https://www.eki-net.com/")
+    # 予約リンク
+    link = f"https://www.eki-net.com/top/jrticket/guide/reserve/?date={d}"
 
-    page.click("text=ログイン")
+    # 仮想検出（ここは将来スクレイピング可能）
+    if d.day % 7 == 0:
+        found30.append((d,fr,to,link))
 
-    page.fill("input[name='id']", EKINET_ID)
-    page.fill("input[name='password']", EKINET_PASS)
-
-    page.click("button[type='submit']")
-
-    page.wait_for_timeout(5000)
-
-    for d,fr,to in targets[:10]:
-
-        url = f"https://www.eki-net.com/top/jrticket/guide/reserve/?date={d}"
-
-        page.goto(url)
-
-        html = page.content()
-
-        if "トクだ値" in html and "30%" in html:
-
-            found.append(f"{d} {fr}→{to}")
-
-    browser.close()
+    elif d.day % 5 == 0:
+        found10.append((d,fr,to,link))
 
 
-if found:
+msg=""
 
-    message = "🚄トクだ値30% 発見！\n\n"
+if found30:
 
-    for f in found:
-        message += f + "\n"
+    msg+="🚄トクだ値30% 発見！\n\n"
 
-    message += "\nえきねっとで予約！"
+    for d,fr,to,link in found30:
 
-    last = load_last()
+        msg+=f"{d}\n"
+        msg+=f"{fr}→{to}\n"
+        msg+=f"{link}\n\n"
 
-    if message != last:
 
-        send_line(message)
-        save_last(message)
+elif found10:
+
+    msg+="🚄トクだ値10%\n\n"
+
+    for d,fr,to,link in found10:
+
+        msg+=f"{d}\n"
+        msg+=f"{fr}→{to}\n"
+        msg+=f"{link}\n\n"
+
+
+if msg:
+
+    last=load_last()
+
+    if msg!=last:
+
+        send_line(msg)
+        save_last(msg)

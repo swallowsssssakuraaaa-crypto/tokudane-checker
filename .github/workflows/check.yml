@@ -2,26 +2,28 @@ name: tokudane-check
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/30 * * * *'   # 30分ごと
   workflow_dispatch:
 
 jobs:
-
-  run:
+  run-bot:
 
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - run: pip install requests
+      - name: Install dependencies
+        run: |
+          pip install requests
 
-      - name: run bot
+      - name: Run Tokudane Hunter
         env:
           LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

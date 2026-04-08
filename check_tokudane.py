@@ -1,7 +1,6 @@
 import os
 import requests
 import datetime
-import json
 
 LINE_CHANNEL_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
 LINE_USER_ID = os.environ["LINE_USER_ID"]
@@ -27,9 +26,10 @@ def send_line(message):
 
     requests.post(url, headers=headers, json=data)
 
+
 today = datetime.date.today()
 
-messages = []
+candidates = []
 
 for i in range(1,31):
 
@@ -37,28 +37,38 @@ for i in range(1,31):
 
     weekday = target.weekday()
 
-    # あなたの移動パターン
     if weekday in [3,4,6,0]:
 
-        messages.append(
-f"""
-🚄富山チャンス日
+        if weekday in [3,4]:
 
-日付
-{target}
+            route = "東京 → 富山"
 
-区間
-東京 ↔ 富山
+        else:
 
-優先列車
-かがやき
-はくたか
+            route = "富山 → 東京"
 
-👇検索
+        candidates.append((target,route))
+
+
+if candidates:
+
+    message = "🚄富山おすすめランキング\n\n"
+
+    rank = 1
+
+    for d,r in candidates[:5]:
+
+        message += f"""{rank}位
+{d}
+{r}
+
+"""
+
+        rank += 1
+
+    message += """
+👇えきねっと検索
 https://www.eki-net.com/
 """
-        )
 
-if messages:
-
-    send_line("\n".join(messages))
+    send_line(message)

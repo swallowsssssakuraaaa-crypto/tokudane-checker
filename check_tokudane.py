@@ -7,6 +7,7 @@ LINE_USER_ID = os.environ["LINE_USER_ID"]
 
 LAST_FILE = "last_sent.txt"
 
+
 def send_line(msg):
 
     url = "https://api.line.me/v2/bot/message/push"
@@ -58,7 +59,7 @@ for i in range(1,31):
 
 found30=[]
 found10=[]
-cancel_seats=[]
+cancel=[]
 
 
 trains = [
@@ -74,7 +75,7 @@ trains = [
 
 for d,fr,to in targets:
 
-    link = f"https://www.eki-net.com/top/jrticket/guide/reserve/?date={d}"
+    link = f"https://www.eki-net.com/"
 
     if d.day % 7 == 0:
 
@@ -84,19 +85,18 @@ for d,fr,to in targets:
 
         found10.append((d,fr,to,link))
 
-
     if d.day % 9 == 0:
 
         for t in trains:
 
-            cancel_seats.append((d,fr,to,t))
+            cancel.append((d,fr,to,t))
 
 
 msg=""
 
 if found30:
 
-    msg+="🚄トクだ値30% 発見！\n\n"
+    msg+="🚄トクだ値30% 発見\n\n"
 
     for d,fr,to,link in found30:
 
@@ -116,11 +116,11 @@ elif found10:
         msg+=f"{link}\n\n"
 
 
-elif cancel_seats:
+elif cancel:
 
-    msg+="🎫キャンセル席発見\n\n"
+    msg+="🎫キャンセル席\n\n"
 
-    for d,fr,to,t in cancel_seats[:5]:
+    for d,fr,to,t in cancel[:5]:
 
         msg+=f"{d}\n"
         msg+=f"{fr}→{to}\n"

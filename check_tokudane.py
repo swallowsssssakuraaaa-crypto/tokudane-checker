@@ -31,23 +31,20 @@ today = datetime.date.today()
 
 candidates = []
 
-for i in range(1,31):
+for i in range(1, 31):
 
     target = today + datetime.timedelta(days=i)
 
     weekday = target.weekday()
 
-    if weekday in [3,4,6,0]:
+    if weekday in [3, 4, 6, 0]:
 
-        if weekday in [3,4]:
-
+        if weekday in [3, 4]:
             route = "東京 → 富山"
-
         else:
-
             route = "富山 → 東京"
 
-        candidates.append((target,route))
+        candidates.append((target, route))
 
 
 if candidates:
@@ -56,7 +53,7 @@ if candidates:
 
     rank = 1
 
-    for d,r in candidates[:5]:
+    for d, r in candidates[:5]:
 
         message += f"""{rank}位
 {d}

@@ -57,74 +57,87 @@ for i in range(1,31):
         targets.append((d,"富山","東京"))
 
 
+trains = [
+
+("かがやき501","06:16"),
+("かがやき503","07:20"),
+("かがやき505","08:24"),
+("かがやき507","09:20"),
+("かがやき509","10:24"),
+("かがやき511","11:20"),
+("かがやき513","12:24"),
+("はくたか553","13:52"),
+("はくたか555","15:52"),
+("はくたか557","17:52")
+
+]
+
+
 found30=[]
 found10=[]
 cancel=[]
 
 
-trains = [
-"かがやき501",
-"かがやき503",
-"かがやき505",
-"かがやき507",
-"はくたか553",
-"はくたか555",
-"はくたか557"
-]
-
-
 for d,fr,to in targets:
 
-    link = f"https://www.eki-net.com/"
+    link = "https://www.eki-net.com/"
 
     if d.day % 7 == 0:
 
-        found30.append((d,fr,to,link))
+        name,time = trains[d.day % len(trains)]
+        found30.append((d,fr,to,name,time,link))
 
     elif d.day % 5 == 0:
 
-        found10.append((d,fr,to,link))
+        name,time = trains[d.day % len(trains)]
+        found10.append((d,fr,to,name,time,link))
+
 
     if d.day % 9 == 0:
 
-        for t in trains:
-
-            cancel.append((d,fr,to,t))
+        name,time = trains[d.day % len(trains)]
+        cancel.append((d,fr,to,name,time))
 
 
 msg=""
+
 
 if found30:
 
     msg+="🚄トクだ値30% 発見\n\n"
 
-    for d,fr,to,link in found30:
+    for d,fr,to,name,time,link in found30:
 
         msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n"
-        msg+=f"{link}\n\n"
+        msg+=f"{fr}→{to}\n\n"
+        msg+=f"{name}\n"
+        msg+=f"{time}発\n\n"
+        msg+=f"予約\n{link}\n\n"
 
 
 elif found10:
 
     msg+="🚄トクだ値10%\n\n"
 
-    for d,fr,to,link in found10:
+    for d,fr,to,name,time,link in found10:
 
         msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n"
-        msg+=f"{link}\n\n"
+        msg+=f"{fr}→{to}\n\n"
+        msg+=f"{name}\n"
+        msg+=f"{time}発\n\n"
+        msg+=f"予約\n{link}\n\n"
 
 
 elif cancel:
 
     msg+="🎫キャンセル席\n\n"
 
-    for d,fr,to,t in cancel[:5]:
+    for d,fr,to,name,time in cancel[:5]:
 
         msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n"
-        msg+=f"{t}\n\n"
+        msg+=f"{fr}→{to}\n\n"
+        msg+=f"{name}\n"
+        msg+=f"{time}発\n\n"
 
 
 if msg:

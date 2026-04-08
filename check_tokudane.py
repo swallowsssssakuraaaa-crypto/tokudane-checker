@@ -25,47 +25,35 @@ def send_line(message):
 
     requests.post(url, headers=headers, json=data)
 
-# 今日の日付
 today = datetime.date.today()
-
-# 1ヶ月後（予約対象）
 target = today + datetime.timedelta(days=30)
 
 weekday = target.weekday()
 
-message = None
+route = None
 
-# 木曜 or 金曜 → 東京→富山
-if weekday == 3 or weekday == 4:
+if weekday in [3,4]:
+    route = "東京 → 富山"
+
+if weekday in [6,0]:
+    route = "富山 → 東京"
+
+if route:
+
     message = f"""
-🚄トクだ値予約チェック日
+🚄トクだ値監視中
 
-東京 → 富山
+対象日
 {target}
 
-優先列車
-・かがやき
-・はくたか
-
-💡本日10:00に
-30%OFFが出る可能性
-"""
-
-# 日曜 or 月曜 → 富山→東京
-elif weekday == 6 or weekday == 0:
-    message = f"""
-🚄トクだ値予約チェック日
-
-富山 → 東京
-{target}
+区間
+{route}
 
 優先列車
-・かがやき
-・はくたか
+かがやき / はくたか
 
-💡本日10:00に
-30%OFFが出る可能性
+👇予約
+https://www.eki-net.com/
 """
 
-if message:
     send_line(message)

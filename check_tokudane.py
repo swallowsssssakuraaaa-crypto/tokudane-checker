@@ -1,6 +1,8 @@
 import os
-import requests
+import asyncio
 from datetime import datetime, timedelta
+from playwright.async_api import async_playwright
+import requests
 
 LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
 LINE_USER = os.getenv("LINE_USER_ID")
@@ -12,7 +14,6 @@ ROUTES = [
 
 CHECK_DAYS = 30
 
-API_URL = "https://www.eki-net.com/ap/api/search"
 
 def send_line(text):
 
@@ -32,100 +33,72 @@ def send_line(text):
         json=body
     )
 
-def search_tokudane():
+
+async def search():
 
     results = []
 
-    for dep,arr in ROUTES:
+    async with async_playwright() as p:
 
-        for i in range(CHECK_DAYS):
+        browser = await p.chromium.launch()
+        page = await browser.new_page()
 
-            date = datetime.now() + timedelta(days=i)
+        for dep,arr in ROUTES:
 
-            d = date.strftime("%Y-%m-%d")
+            for i in range(CHECK_DAYS):
 
-            params = {
-                "from": dep,
-                "to": arr,
-                "date": d
-            }
+                date = datetime.now()+timedelta(days=i)
+                d = date.strftime("%Y-%m-%d")
 
-            try:
+                url=f"https://www.eki-net.com/top/jrticket/guide/reserve/?from={dep}&to={arr}&date={d}"
 
-                r = requests.get(API_URL, params=params, timeout=20)
+                await page.goto(url)
 
-                if r.status_code != 200:
-                    continue
+                await page.wait_for_timeout(5000)
 
-                data = r.json()
+                content=await page.content()
 
-            except:
-                continue
+                lines=[]
 
-            trains = []
+                for l in content.split("\n"):
 
-            for t in data.get("trains",[]):
+                    if "かがやき" in l or "はくたか" in l:
 
-                name = t.get("name","")
+                        if "30%" in l or "35%" in l or "40%" in l:
 
-                if "かがやき" not in name and "はくたか" not in name:
-                    continue
+                            lines.append(l.strip())
 
-                discount = t.get("discount",0)
+                if lines:
 
-                if discount < 30:
-                    continue
+                    results.append((date.strftime("%m/%d"),dep,arr,lines))
 
-                if not t.get("available",False):
-                    continue
-
-                trains.append({
-                    "name": name,
-                    "dep": t["dep"],
-                    "arr": t["arr"],
-                    "discount": discount
-                })
-
-            if trains:
-
-                results.append({
-                    "date": date.strftime("%m/%d"),
-                    "route": f"{dep}→{arr}",
-                    "trains": trains
-                })
+        await browser.close()
 
     return results
 
-def build_message(data):
 
-    text = "🚄トクだ値 発見\n\n"
+async def main():
 
-    for r in data:
+    data=await search()
 
-        text += f"{r['date']}\n"
-        text += f"{r['route']}\n\n"
+    if not data:
+        return
 
-        for t in r["trains"]:
+    msg="🚄トクだ値 発見\n\n"
 
-            text += f"{t['name']}\n"
-            text += f"{t['dep']} → {t['arr']}\n"
-            text += f"割引：{t['discount']}%\n\n"
+    for d,dep,arr,lines in data:
 
-        text += "\n"
+        msg+=f"{d}\n{dep}→{arr}\n\n"
 
-    text += "空席照会\nhttps://www.eki-net.com/"
+        for l in lines:
 
-    return text
+            msg+=l+"\n"
 
-def main():
+        msg+="\n"
 
-    results = search_tokudane()
+    msg+="空席照会\nhttps://www.eki-net.com/"
 
-    if results:
+    send_line(msg)
 
-        msg = build_message(results)
 
-        send_line(msg)
-
-if __name__ == "__main__":
-    main()
+asyncio.run(main())

@@ -2,147 +2,108 @@ import os
 import json
 import datetime
 import requests
-import random
 
-LINE_TOKEN=os.environ["LINE_CHANNEL_TOKEN"]
-LINE_USER_ID=os.environ["LINE_USER_ID"]
+LINE_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
+LINE_USER_ID = os.environ["LINE_USER_ID"]
 
-headers={
- "Authorization":f"Bearer {LINE_TOKEN}",
- "Content-Type":"application/json"
+headers = {
+    "Authorization": f"Bearer {LINE_TOKEN}",
+    "Content-Type": "application/json"
 }
 
-def send_line(msg):
+def send_line(message):
 
- payload={
-  "to":LINE_USER_ID,
-  "messages":[{"type":"text","text":msg}]
- }
+    payload = {
+        "to": LINE_USER_ID,
+        "messages": [{"type": "text", "text": message}]
+    }
 
- requests.post(
-  "https://api.line.me/v2/bot/message/push",
-  headers=headers,
-  json=payload
- )
+    requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers=headers,
+        json=payload
+    )
 
 
 def load_routes():
- with open("routes.json") as f:
-  return json.load(f)
+    with open("routes.json") as f:
+        return json.load(f)
 
 
 def load_history():
 
- if not os.path.exists("last_sent.json"):
-  return {}
+    if not os.path.exists("last_sent.json"):
+        return {}
 
- with open("last_sent.json") as f:
-  return json.load(f)
+    with open("last_sent.json") as f:
+        return json.load(f)
 
 
 def save_history(data):
 
- with open("last_sent.json","w") as f:
-  json.dump(data,f)
+    with open("last_sent.json", "w") as f:
+        json.dump(data, f)
 
 
-def create_key(date,route,train):
+def create_key(date, route):
 
- return f"{date}_{route['from']}_{route['to']}_{train}"
-
-
-def build_link(route,date):
-
- base="https://www.eki-net.com"
-
- return f"{base}/"
+    return f"{date}_{route['from']}_{route['to']}"
 
 
-def simulate_train():
+def build_link():
 
- trains=[
-  ("かがやき503","06:16"),
-  ("かがやき507","08:24"),
-  ("かがやき511","10:24"),
-  ("はくたか553","13:52"),
-  ("はくたか567","18:24"),
-  ("かがやき515","19:20"),
- ]
-
- return random.choice(trains)
-
-
-def simulate_discount():
-
- r=random.random()
-
- if r<0.2:
-  return "30%"
- elif r<0.4:
-  return "10%"
- else:
-  return None
+    return "https://www.eki-net.com/"
 
 
 def check():
 
- routes=load_routes()
- history=load_history()
+    routes = load_routes()
+    history = load_history()
 
- today=datetime.date.today()
+    today = datetime.date.today()
 
- for i in range(30):
+    for i in range(30):
 
-  d=today+datetime.timedelta(days=i)
+        date = today + datetime.timedelta(days=i)
 
-  for r in routes:
+        for route in routes:
 
-   train,depart=simulate_train()
+            key = create_key(str(date), route)
 
-   discount=simulate_discount()
+            if key in history:
+                continue
 
-   if not discount:
-    continue
+            link = build_link()
 
-   key=create_key(str(d),r,train+discount)
+            message = f"""
+🚄トクだ値チェック
 
-   if key in history:
-    continue
+{date}
 
-   link=build_link(r,d)
-
-   msg=f"""
-🚄トクだ値{discount} 発見
-
-{d}
-
-{r['from']} → {r['to']}
-
-{train}
-{depart}発
+{route['from']} → {route['to']}
 
 空席確認
 {link}
 """
 
-   send_line(msg)
+            send_line(message)
 
-   history[key]=True
-   save_history(history)
+            history[key] = True
+            save_history(history)
 
-   return
+            return
 
 
 def main():
 
- now=datetime.datetime.now().time()
+    now = datetime.datetime.now().time()
 
- start=datetime.time(5,30)
- end=datetime.time(23,50)
+    start = datetime.time(5, 30)
+    end = datetime.time(23, 50)
 
- if start<=now<=end:
-  check()
+    if start <= now <= end:
+        check()
 
 
-if __name__=="__main__":
- main()
+if __name__ == "__main__":
+    main()

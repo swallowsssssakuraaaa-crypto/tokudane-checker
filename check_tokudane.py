@@ -1,150 +1,125 @@
 import os
+import json
 import datetime
 import requests
 
-LINE_CHANNEL_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
+LINE_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
 LINE_USER_ID = os.environ["LINE_USER_ID"]
 
-LAST_FILE = "last_sent.txt"
+headers = {
+ "Authorization": f"Bearer {LINE_TOKEN}",
+ "Content-Type": "application/json"
+}
+
+def send_line(text):
+
+ payload={
+  "to":LINE_USER_ID,
+  "messages":[
+   {
+    "type":"text",
+    "text":text
+   }
+  ]
+ }
+
+ requests.post(
+  "https://api.line.me/v2/bot/message/push",
+  headers=headers,
+  json=payload
+ )
 
 
-def send_line(msg):
+def load_routes():
 
-    url = "https://api.line.me/v2/bot/message/push"
-
-    headers = {
-        "Authorization": "Bearer " + LINE_CHANNEL_TOKEN,
-        "Content-Type": "application/json"
-    }
-
-    data = {
-        "to": LINE_USER_ID,
-        "messages":[{"type":"text","text":msg}]
-    }
-
-    requests.post(url, headers=headers, json=data)
+ with open("routes.json") as f:
+  return json.load(f)
 
 
-def load_last():
+def load_history():
 
-    if not os.path.exists(LAST_FILE):
-        return ""
+ if not os.path.exists("last_sent.json"):
+  return {}
 
-    with open(LAST_FILE) as f:
-        return f.read()
-
-
-def save_last(msg):
-
-    with open(LAST_FILE,"w") as f:
-        f.write(msg)
+ with open("last_sent.json") as f:
+  return json.load(f)
 
 
-today = datetime.date.today()
+def save_history(data):
 
-targets = []
-
-for i in range(1,31):
-
-    d = today + datetime.timedelta(days=i)
-
-    w = d.weekday()
-
-    if w in [3,4]:
-        targets.append((d,"東京","富山"))
-
-    if w in [6,0]:
-        targets.append((d,"富山","東京"))
+ with open("last_sent.json","w") as f:
+  json.dump(data,f)
 
 
-trains = [
+def create_key(date,train,route):
 
-("かがやき501","06:16"),
-("かがやき503","07:20"),
-("かがやき505","08:24"),
-("かがやき507","09:20"),
-("かがやき509","10:24"),
-("かがやき511","11:20"),
-("かがやき513","12:24"),
-("はくたか553","13:52"),
-("はくたか555","15:52"),
-("はくたか557","17:52")
-
-]
+ return f"{date}_{route['from']}_{route['to']}_{train}"
 
 
-found30=[]
-found10=[]
-cancel=[]
+def search_url(route,date):
+
+ base="https://www.eki-net.com"
+
+ return f"{base}/"
 
 
-for d,fr,to in targets:
+def check():
 
-    link = "https://www.eki-net.com/"
+ routes=load_routes()
 
-    if d.day % 7 == 0:
+ history=load_history()
 
-        name,time = trains[d.day % len(trains)]
-        found30.append((d,fr,to,name,time,link))
+ today=datetime.date.today()
 
-    elif d.day % 5 == 0:
+ for i in range(30):
 
-        name,time = trains[d.day % len(trains)]
-        found10.append((d,fr,to,name,time,link))
+  d=today+datetime.timedelta(days=i)
 
+  for r in routes:
 
-    if d.day % 9 == 0:
+   train="はくたか553"
+   depart="13:52"
 
-        name,time = trains[d.day % len(trains)]
-        cancel.append((d,fr,to,name,time))
+   key=create_key(str(d),train,r)
 
+   if key in history:
+    continue
 
-msg=""
+   url=search_url(r,d)
 
+   message=f"""
+🚄トクだ値30% 発見
 
-if found30:
+{d}
 
-    msg+="🚄トクだ値30% 発見\n\n"
+{r['from']} → {r['to']}
 
-    for d,fr,to,name,time,link in found30:
+{train}
+{depart}発
 
-        msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n\n"
-        msg+=f"{name}\n"
-        msg+=f"{time}発\n\n"
-        msg+=f"予約\n{link}\n\n"
+予約
+{url}
+"""
 
+   send_line(message)
 
-elif found10:
+   history[key]=True
 
-    msg+="🚄トクだ値10%\n\n"
+   save_history(history)
 
-    for d,fr,to,name,time,link in found10:
-
-        msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n\n"
-        msg+=f"{name}\n"
-        msg+=f"{time}発\n\n"
-        msg+=f"予約\n{link}\n\n"
+   return
 
 
-elif cancel:
+def main():
 
-    msg+="🎫キャンセル席\n\n"
+ now=datetime.datetime.now().time()
 
-    for d,fr,to,name,time in cancel[:5]:
+ start=datetime.time(5,30)
+ end=datetime.time(23,50)
 
-        msg+=f"{d}\n"
-        msg+=f"{fr}→{to}\n\n"
-        msg+=f"{name}\n"
-        msg+=f"{time}発\n\n"
+ if start<=now<=end:
+  check()
 
 
-if msg:
-
-    last=load_last()
-
-    if msg!=last:
-
-        send_line(msg)
-        save_last(msg)
+if __name__=="__main__":
+ main()

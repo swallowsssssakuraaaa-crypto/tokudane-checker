@@ -1,28 +1,29 @@
 name: tokudane-check
 
 on:
-  schedule:
-    - cron: '0 * * * *'
-  workflow_dispatch:
+
+ schedule:
+  - cron: '*/15 * * * *'
+
+ workflow_dispatch:
 
 jobs:
 
-  run:
+ check:
 
-    runs-on: ubuntu-latest
+  runs-on: ubuntu-latest
 
-    steps:
+  steps:
 
-      - uses: actions/checkout@v3
+  - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
+  - uses: actions/setup-python@v5
+    with:
+     python-version: "3.11"
 
-      - run: pip install requests
+  - run: pip install requests
 
-      - name: run bot
-        env:
-          LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
-        run: python check_tokudane.py
+  - run: python check_tokudane.py
+    env:
+     LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+     LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

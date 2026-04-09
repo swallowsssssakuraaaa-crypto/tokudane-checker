@@ -1,30 +1,25 @@
-import requests
 import os
-from datetime import datetime, timedelta
+import requests
+from datetime import datetime,timedelta
 
-LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
-LINE_USER = os.getenv("LINE_USER_ID")
+LINE_TOKEN=os.getenv("LINE_CHANNEL_TOKEN")
+LINE_USER=os.getenv("LINE_USER_ID")
 
-FROM = "東京"
-TO = "富山"
+FROM="東京"
+TO="富山"
 
-CHECK_DAYS = 30
+CHECK_DAYS=30
 
-def send_line(msg):
+def send_line(text):
 
-    headers = {
-        "Authorization": f"Bearer {LINE_TOKEN}",
-        "Content-Type": "application/json"
+    headers={
+        "Authorization":f"Bearer {LINE_TOKEN}",
+        "Content-Type":"application/json"
     }
 
-    body = {
-        "to": LINE_USER,
-        "messages":[
-            {
-                "type":"text",
-                "text":msg
-            }
-        ]
+    body={
+        "to":LINE_USER,
+        "messages":[{"type":"text","text":text}]
     }
 
     requests.post(
@@ -47,37 +42,59 @@ def save_history(data):
         for d in data:
             f.write(d+"\n")
 
-def fetch_tokudane():
+def search_tokudane():
 
     results=[]
 
     for i in range(CHECK_DAYS):
 
-        date=(datetime.now()+timedelta(days=i)).strftime("%Y-%m-%d")
+        d=datetime.now()+timedelta(days=i)
 
-        url="https://www.eki-net.com/"
+        date=d.strftime("%Y%m%d")
 
-        # 実際の空席解析はここ
-        # 今は簡易構造
+        url=f"https://traininfo.jreast.co.jp/train_info/shinkansen/seat?date={date}&from=東京&to=富山"
 
-        trains=[
-            {"name":"かがやき515号","dep":"18:24","arr":"20:32","discount":30},
-            {"name":"はくたか571号","dep":"19:24","arr":"21:52","discount":35}
-        ]
+        r=requests.get(url)
 
-        valid=[]
+        if r.status_code!=200:
+            continue
 
-        for t in trains:
+        data=r.text
 
-            if t["discount"]>=30:
+        trains=[]
 
-                valid.append(t)
+        lines=data.split("\n")
 
-        if valid:
+        for line in lines:
+
+            if "トクだ値30" in line or "トクだ値35" in line or "トクだ値40" in line:
+
+                parts=line.split(",")
+
+                name=parts[0]
+                dep=parts[1]
+                arr=parts[2]
+
+                discount="30"
+
+                if "35" in line:
+                    discount="35"
+
+                if "40" in line:
+                    discount="40"
+
+                trains.append({
+                    "name":name,
+                    "dep":dep,
+                    "arr":arr,
+                    "discount":discount
+                })
+
+        if trains:
 
             results.append({
-                "date":date,
-                "trains":valid
+                "date":d.strftime("%m/%d"),
+                "trains":trains
             })
 
     return results
@@ -86,14 +103,12 @@ def build_message(data):
 
     text="🚄トクだ値 発見\n\n"
 
-    for d in data:
+    for r in data:
 
-        dt=datetime.strptime(d["date"],"%Y-%m-%d")
-
-        text+=f"{dt.month}/{dt.day}\n"
+        text+=f"{r['date']}\n"
         text+=f"{FROM}→{TO}\n\n"
 
-        for t in d["trains"]:
+        for t in r["trains"]:
 
             text+=f"{t['name']}\n"
             text+=f"{t['dep']} → {t['arr']}\n"
@@ -111,7 +126,7 @@ def main():
 
     new=set(history)
 
-    results=fetch_tokudane()
+    results=search_tokudane()
 
     notify=[]
 

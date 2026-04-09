@@ -1,108 +1,136 @@
-import os
-import json
-import datetime
 import requests
+import os
+from datetime import datetime, timedelta
 
-LINE_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
-LINE_USER_ID = os.environ["LINE_USER_ID"]
+LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
+LINE_USER = os.getenv("LINE_USER_ID")
 
-headers = {
- "Authorization": f"Bearer {LINE_TOKEN}",
- "Content-Type": "application/json"
-}
+DEP = "東京"
+ARR = "富山"
 
-def send_line(text):
-
- payload = {
-  "to": LINE_USER_ID,
-  "messages":[{"type":"text","text":text}]
- }
-
- requests.post(
-  "https://api.line.me/v2/bot/message/push",
-  headers=headers,
-  json=payload
- )
+CHECK_DAYS = 30
 
 
-def load_routes():
+def send_line(message):
 
- with open("routes.json") as f:
-  return json.load(f)
+    headers = {
+        "Authorization": f"Bearer {LINE_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
+    data = {
+        "to": LINE_USER,
+        "messages": [
+            {
+                "type": "text",
+                "text": message
+            }
+        ]
+    }
 
-def load_history():
-
- if not os.path.exists("last_sent.json"):
-  return {}
-
- with open("last_sent.json") as f:
-  return json.load(f)
-
-
-def save_history(data):
-
- with open("last_sent.json","w") as f:
-  json.dump(data,f)
-
-
-def build_key(date, route):
-
- return f"{date}_{route['from']}_{route['to']}"
+    requests.post(
+        "https://api.line.me/v2/bot/message/push",
+        headers=headers,
+        json=data
+    )
 
 
-def build_link():
+def load_last():
 
- return "https://www.eki-net.com/"
+    if not os.path.exists("last_sent.txt"):
+        return set()
+
+    with open("last_sent.txt") as f:
+        return set(f.read().splitlines())
 
 
-def check_tokudane():
+def save_last(keys):
 
- routes = load_routes()
- history = load_history()
+    with open("last_sent.txt", "w") as f:
+        for k in keys:
+            f.write(k + "\n")
 
- today = datetime.date.today()
 
- for i in range(30):
+def get_tokudane():
 
-  date = today + datetime.timedelta(days=i)
+    results = []
 
-  for route in routes:
+    for i in range(CHECK_DAYS):
 
-   key = build_key(str(date), route)
+        date = (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d")
 
-   if key in history:
-    continue
+        # 仮データ（実際はえきねっと解析）
+        trains = [
+            {"name": "かがやき515号", "dep": "18:24", "arr": "20:32", "discount": 30},
+            {"name": "はくたか571号", "dep": "19:24", "arr": "21:52", "discount": 30}
+        ]
 
-   message=f"""
-🚄トクだ値チェック
+        valid = []
 
-{date}
+        for t in trains:
 
-{route['from']} → {route['to']}
+            if t["discount"] == 30:
+                valid.append(t)
 
-空席確認
-https://www.eki-net.com/
-"""
+        if valid:
 
-   send_line(message)
+            results.append({
+                "date": date,
+                "trains": valid
+            })
 
-   history[key]=True
-   save_history(history)
+    return results
 
-   return
+
+def format_message(results):
+
+    msg = "🚄トクだ値30% 発見\n\n"
+
+    for r in results:
+
+        d = datetime.strptime(r["date"], "%Y-%m-%d")
+        date_text = f"{d.month}/{d.day}"
+
+        msg += f"{date_text}\n"
+        msg += f"{DEP}→{ARR}\n\n"
+
+        for t in r["trains"]:
+
+            msg += f"{t['name']}\n"
+            msg += f"{t['dep']} → {t['arr']}\n\n"
+
+        msg += "\n"
+
+    msg += "空席照会\nhttps://www.eki-net.com/"
+
+    return msg
 
 
 def main():
 
- now = datetime.datetime.now().time()
+    last = load_last()
+    new_last = set(last)
 
- start = datetime.time(5,30)
- end = datetime.time(23,50)
+    results = get_tokudane()
 
- if start <= now <= end:
-  check_tokudane()
+    notify = []
+
+    for r in results:
+
+        key = r["date"]
+
+        if key not in last:
+
+            notify.append(r)
+            new_last.add(key)
+
+    if notify:
+
+        message = format_message(notify)
+        send_line(message)
+
+    save_last(new_last)
 
 
 if __name__ == "__main__":
- main()
+    main()

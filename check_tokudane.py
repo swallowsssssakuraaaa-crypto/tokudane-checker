@@ -3,24 +3,19 @@ import json
 import datetime
 import requests
 
-LINE_TOKEN = os.environ["LINE_CHANNEL_TOKEN"]
-LINE_USER_ID = os.environ["LINE_USER_ID"]
+LINE_TOKEN=os.environ["LINE_CHANNEL_TOKEN"]
+LINE_USER_ID=os.environ["LINE_USER_ID"]
 
-headers = {
- "Authorization": f"Bearer {LINE_TOKEN}",
- "Content-Type": "application/json"
+headers={
+ "Authorization":f"Bearer {LINE_TOKEN}",
+ "Content-Type":"application/json"
 }
 
 def send_line(text):
 
  payload={
   "to":LINE_USER_ID,
-  "messages":[
-   {
-    "type":"text",
-    "text":text
-   }
-  ]
+  "messages":[{"type":"text","text":text}]
  }
 
  requests.post(
@@ -31,7 +26,6 @@ def send_line(text):
 
 
 def load_routes():
-
  with open("routes.json") as f:
   return json.load(f)
 
@@ -51,22 +45,21 @@ def save_history(data):
   json.dump(data,f)
 
 
-def create_key(date,train,route):
+def create_key(date,route,train):
 
  return f"{date}_{route['from']}_{route['to']}_{train}"
 
 
-def search_url(route,date):
+def build_search_link(date,route):
 
  base="https://www.eki-net.com"
 
  return f"{base}/"
 
 
-def check():
+def check_tokudane():
 
  routes=load_routes()
-
  history=load_history()
 
  today=datetime.date.today()
@@ -80,12 +73,12 @@ def check():
    train="はくたか553"
    depart="13:52"
 
-   key=create_key(str(d),train,r)
+   key=create_key(str(d),r,train)
 
    if key in history:
     continue
 
-   url=search_url(r,d)
+   link=build_search_link(d,r)
 
    message=f"""
 🚄トクだ値30% 発見
@@ -97,14 +90,13 @@ def check():
 {train}
 {depart}発
 
-予約
-{url}
+空席確認
+{link}
 """
 
    send_line(message)
 
    history[key]=True
-
    save_history(history)
 
    return
@@ -118,7 +110,7 @@ def main():
  end=datetime.time(23,50)
 
  if start<=now<=end:
-  check()
+  check_tokudane()
 
 
 if __name__=="__main__":

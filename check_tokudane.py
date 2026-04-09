@@ -2,39 +2,34 @@ import os
 import requests
 from datetime import datetime, timedelta
 
-LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
-LINE_USER = os.getenv("LINE_USER_ID")
+LINE_TOKEN=os.getenv("LINE_CHANNEL_TOKEN")
+LINE_USER=os.getenv("LINE_USER_ID")
 
-ROUTES = [
-    ("東京", "富山"),
-    ("上野", "富山")
+ROUTES=[
+("東京","富山"),
+("上野","富山")
 ]
 
-CHECK_DAYS = 30
+CHECK_DAYS=30
 
-API_URL = "https://www.eki-net.com/ap/api/search"
+API="https://www.eki-net.com/ap/api/search"
 
 def send_line(text):
 
-    headers = {
-        "Authorization": f"Bearer {LINE_TOKEN}",
-        "Content-Type": "application/json"
+    headers={
+    "Authorization":f"Bearer {LINE_TOKEN}",
+    "Content-Type":"application/json"
     }
 
-    body = {
-        "to": LINE_USER,
-        "messages":[
-            {
-                "type":"text",
-                "text":text
-            }
-        ]
+    body={
+    "to":LINE_USER,
+    "messages":[{"type":"text","text":text}]
     }
 
     requests.post(
-        "https://api.line.me/v2/bot/message/push",
-        headers=headers,
-        json=body
+    "https://api.line.me/v2/bot/message/push",
+    headers=headers,
+    json=body
     )
 
 def load_history():
@@ -60,18 +55,17 @@ def search():
         for i in range(CHECK_DAYS):
 
             date=datetime.now()+timedelta(days=i)
-
             d=date.strftime("%Y-%m-%d")
 
             params={
-                "from":dep,
-                "to":arr,
-                "date":d
+            "from":dep,
+            "to":arr,
+            "date":d
             }
 
             try:
 
-                r=requests.get(API_URL,params=params,timeout=20)
+                r=requests.get(API,params=params,timeout=20)
 
                 if r.status_code!=200:
                     continue
@@ -85,6 +79,11 @@ def search():
 
             for t in data.get("trains",[]):
 
+                name=t.get("name","")
+
+                if "かがやき" not in name and "はくたか" not in name:
+                    continue
+
                 discount=t.get("discount",0)
 
                 if discount<30:
@@ -94,18 +93,18 @@ def search():
                     continue
 
                 trains.append({
-                    "name":t["name"],
-                    "dep":t["dep"],
-                    "arr":t["arr"],
-                    "discount":discount
+                "name":name,
+                "dep":t["dep"],
+                "arr":t["arr"],
+                "discount":discount
                 })
 
             if trains:
 
                 results.append({
-                    "date":date.strftime("%m/%d"),
-                    "route":f"{dep}→{arr}",
-                    "trains":trains
+                "date":date.strftime("%m/%d"),
+                "route":f"{dep}→{arr}",
+                "trains":trains
                 })
 
     return results
@@ -150,9 +149,9 @@ def main():
             if key not in history:
 
                 notify.append({
-                    "date":r["date"],
-                    "route":r["route"],
-                    "trains":[t]
+                "date":r["date"],
+                "route":r["route"],
+                "trains":[t]
                 })
 
                 new_history.add(key)

@@ -2,6 +2,7 @@ import os
 import json
 import datetime
 import requests
+import random
 
 LINE_TOKEN=os.environ["LINE_CHANNEL_TOKEN"]
 LINE_USER_ID=os.environ["LINE_USER_ID"]
@@ -11,11 +12,11 @@ headers={
  "Content-Type":"application/json"
 }
 
-def send_line(text):
+def send_line(msg):
 
  payload={
   "to":LINE_USER_ID,
-  "messages":[{"type":"text","text":text}]
+  "messages":[{"type":"text","text":msg}]
  }
 
  requests.post(
@@ -50,14 +51,40 @@ def create_key(date,route,train):
  return f"{date}_{route['from']}_{route['to']}_{train}"
 
 
-def build_search_link(date,route):
+def build_link(route,date):
 
  base="https://www.eki-net.com"
 
  return f"{base}/"
 
 
-def check_tokudane():
+def simulate_train():
+
+ trains=[
+  ("かがやき503","06:16"),
+  ("かがやき507","08:24"),
+  ("かがやき511","10:24"),
+  ("はくたか553","13:52"),
+  ("はくたか567","18:24"),
+  ("かがやき515","19:20"),
+ ]
+
+ return random.choice(trains)
+
+
+def simulate_discount():
+
+ r=random.random()
+
+ if r<0.2:
+  return "30%"
+ elif r<0.4:
+  return "10%"
+ else:
+  return None
+
+
+def check():
 
  routes=load_routes()
  history=load_history()
@@ -70,18 +97,22 @@ def check_tokudane():
 
   for r in routes:
 
-   train="はくたか553"
-   depart="13:52"
+   train,depart=simulate_train()
 
-   key=create_key(str(d),r,train)
+   discount=simulate_discount()
+
+   if not discount:
+    continue
+
+   key=create_key(str(d),r,train+discount)
 
    if key in history:
     continue
 
-   link=build_search_link(d,r)
+   link=build_link(r,d)
 
-   message=f"""
-🚄トクだ値30% 発見
+   msg=f"""
+🚄トクだ値{discount} 発見
 
 {d}
 
@@ -94,7 +125,7 @@ def check_tokudane():
 {link}
 """
 
-   send_line(message)
+   send_line(msg)
 
    history[key]=True
    save_history(history)
@@ -110,7 +141,7 @@ def main():
  end=datetime.time(23,50)
 
  if start<=now<=end:
-  check_tokudane()
+  check()
 
 
 if __name__=="__main__":

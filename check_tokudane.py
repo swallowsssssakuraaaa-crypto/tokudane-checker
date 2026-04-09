@@ -5,25 +5,24 @@ from datetime import datetime, timedelta
 LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
 LINE_USER = os.getenv("LINE_USER_ID")
 
-DEP = "東京"
-ARR = "富山"
+FROM = "東京"
+TO = "富山"
 
 CHECK_DAYS = 30
 
-
-def send_line(message):
+def send_line(msg):
 
     headers = {
         "Authorization": f"Bearer {LINE_TOKEN}",
         "Content-Type": "application/json"
     }
 
-    data = {
+    body = {
         "to": LINE_USER,
-        "messages": [
+        "messages":[
             {
-                "type": "text",
-                "text": message
+                "type":"text",
+                "text":msg
             }
         ]
     }
@@ -31,11 +30,10 @@ def send_line(message):
     requests.post(
         "https://api.line.me/v2/bot/message/push",
         headers=headers,
-        json=data
+        json=body
     )
 
-
-def load_last():
+def load_history():
 
     if not os.path.exists("last_sent.txt"):
         return set()
@@ -43,94 +41,97 @@ def load_last():
     with open("last_sent.txt") as f:
         return set(f.read().splitlines())
 
+def save_history(data):
 
-def save_last(keys):
+    with open("last_sent.txt","w") as f:
+        for d in data:
+            f.write(d+"\n")
 
-    with open("last_sent.txt", "w") as f:
-        for k in keys:
-            f.write(k + "\n")
+def fetch_tokudane():
 
-
-def get_tokudane():
-
-    results = []
+    results=[]
 
     for i in range(CHECK_DAYS):
 
-        date = (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d")
+        date=(datetime.now()+timedelta(days=i)).strftime("%Y-%m-%d")
 
-        # 仮データ（実際はえきねっと解析）
-        trains = [
-            {"name": "かがやき515号", "dep": "18:24", "arr": "20:32", "discount": 30},
-            {"name": "はくたか571号", "dep": "19:24", "arr": "21:52", "discount": 30}
+        url="https://www.eki-net.com/"
+
+        # 実際の空席解析はここ
+        # 今は簡易構造
+
+        trains=[
+            {"name":"かがやき515号","dep":"18:24","arr":"20:32","discount":30},
+            {"name":"はくたか571号","dep":"19:24","arr":"21:52","discount":35}
         ]
 
-        valid = []
+        valid=[]
 
         for t in trains:
 
-            if t["discount"] == 30:
+            if t["discount"]>=30:
+
                 valid.append(t)
 
         if valid:
 
             results.append({
-                "date": date,
-                "trains": valid
+                "date":date,
+                "trains":valid
             })
 
     return results
 
+def build_message(data):
 
-def format_message(results):
+    text="🚄トクだ値 発見\n\n"
 
-    msg = "🚄トクだ値30% 発見\n\n"
+    for d in data:
 
-    for r in results:
+        dt=datetime.strptime(d["date"],"%Y-%m-%d")
 
-        d = datetime.strptime(r["date"], "%Y-%m-%d")
-        date_text = f"{d.month}/{d.day}"
+        text+=f"{dt.month}/{dt.day}\n"
+        text+=f"{FROM}→{TO}\n\n"
 
-        msg += f"{date_text}\n"
-        msg += f"{DEP}→{ARR}\n\n"
+        for t in d["trains"]:
 
-        for t in r["trains"]:
+            text+=f"{t['name']}\n"
+            text+=f"{t['dep']} → {t['arr']}\n"
+            text+=f"割引：{t['discount']}%\n\n"
 
-            msg += f"{t['name']}\n"
-            msg += f"{t['dep']} → {t['arr']}\n\n"
+        text+="\n"
 
-        msg += "\n"
+    text+="空席照会\nhttps://www.eki-net.com/"
 
-    msg += "空席照会\nhttps://www.eki-net.com/"
-
-    return msg
-
+    return text
 
 def main():
 
-    last = load_last()
-    new_last = set(last)
+    history=load_history()
 
-    results = get_tokudane()
+    new=set(history)
 
-    notify = []
+    results=fetch_tokudane()
+
+    notify=[]
 
     for r in results:
 
-        key = r["date"]
+        key=r["date"]
 
-        if key not in last:
+        if key not in history:
 
             notify.append(r)
-            new_last.add(key)
+
+            new.add(key)
 
     if notify:
 
-        message = format_message(notify)
-        send_line(message)
+        msg=build_message(notify)
 
-    save_last(new_last)
+        send_line(msg)
 
+    save_history(new)
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

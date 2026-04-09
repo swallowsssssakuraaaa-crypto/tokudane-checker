@@ -1,25 +1,34 @@
 import os
 import requests
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 
-LINE_TOKEN=os.getenv("LINE_CHANNEL_TOKEN")
-LINE_USER=os.getenv("LINE_USER_ID")
+LINE_TOKEN = os.getenv("LINE_CHANNEL_TOKEN")
+LINE_USER = os.getenv("LINE_USER_ID")
 
-FROM="東京"
-TO="富山"
+ROUTES = [
+    ("東京", "富山"),
+    ("上野", "富山")
+]
 
-CHECK_DAYS=30
+CHECK_DAYS = 30
+
+API_URL = "https://www.eki-net.com/ap/api/search"
 
 def send_line(text):
 
-    headers={
-        "Authorization":f"Bearer {LINE_TOKEN}",
-        "Content-Type":"application/json"
+    headers = {
+        "Authorization": f"Bearer {LINE_TOKEN}",
+        "Content-Type": "application/json"
     }
 
-    body={
-        "to":LINE_USER,
-        "messages":[{"type":"text","text":text}]
+    body = {
+        "to": LINE_USER,
+        "messages":[
+            {
+                "type":"text",
+                "text":text
+            }
+        ]
     }
 
     requests.post(
@@ -30,72 +39,74 @@ def send_line(text):
 
 def load_history():
 
-    if not os.path.exists("last_sent.txt"):
+    if not os.path.exists("history.txt"):
         return set()
 
-    with open("last_sent.txt") as f:
+    with open("history.txt") as f:
         return set(f.read().splitlines())
 
 def save_history(data):
 
-    with open("last_sent.txt","w") as f:
+    with open("history.txt","w") as f:
         for d in data:
             f.write(d+"\n")
 
-def search_tokudane():
+def search():
 
     results=[]
 
-    for i in range(CHECK_DAYS):
+    for dep,arr in ROUTES:
 
-        d=datetime.now()+timedelta(days=i)
+        for i in range(CHECK_DAYS):
 
-        date=d.strftime("%Y%m%d")
+            date=datetime.now()+timedelta(days=i)
 
-        url=f"https://traininfo.jreast.co.jp/train_info/shinkansen/seat?date={date}&from=東京&to=富山"
+            d=date.strftime("%Y-%m-%d")
 
-        r=requests.get(url)
+            params={
+                "from":dep,
+                "to":arr,
+                "date":d
+            }
 
-        if r.status_code!=200:
-            continue
+            try:
 
-        data=r.text
+                r=requests.get(API_URL,params=params,timeout=20)
 
-        trains=[]
+                if r.status_code!=200:
+                    continue
 
-        lines=data.split("\n")
+                data=r.json()
 
-        for line in lines:
+            except:
+                continue
 
-            if "トクだ値30" in line or "トクだ値35" in line or "トクだ値40" in line:
+            trains=[]
 
-                parts=line.split(",")
+            for t in data.get("trains",[]):
 
-                name=parts[0]
-                dep=parts[1]
-                arr=parts[2]
+                discount=t.get("discount",0)
 
-                discount="30"
+                if discount<30:
+                    continue
 
-                if "35" in line:
-                    discount="35"
-
-                if "40" in line:
-                    discount="40"
+                if not t.get("available",False):
+                    continue
 
                 trains.append({
-                    "name":name,
-                    "dep":dep,
-                    "arr":arr,
+                    "name":t["name"],
+                    "dep":t["dep"],
+                    "arr":t["arr"],
                     "discount":discount
                 })
 
-        if trains:
+            if trains:
 
-            results.append({
-                "date":d.strftime("%m/%d"),
-                "trains":trains
-            })
+                results.append({
+                    "date":date.strftime("%m/%d"),
+                    "route":f"{dep}→{arr}",
+                    "trains":trains
+                })
 
     return results
 
@@ -106,7 +117,7 @@ def build_message(data):
     for r in data:
 
         text+=f"{r['date']}\n"
-        text+=f"{FROM}→{TO}\n\n"
+        text+=f"{r['route']}\n\n"
 
         for t in r["trains"]:
 
@@ -124,21 +135,27 @@ def main():
 
     history=load_history()
 
-    new=set(history)
+    new_history=set(history)
 
-    results=search_tokudane()
+    results=search()
 
     notify=[]
 
     for r in results:
 
-        key=r["date"]
+        for t in r["trains"]:
 
-        if key not in history:
+            key=f"{r['date']}_{r['route']}_{t['name']}"
 
-            notify.append(r)
+            if key not in history:
 
-            new.add(key)
+                notify.append({
+                    "date":r["date"],
+                    "route":r["route"],
+                    "trains":[t]
+                })
+
+                new_history.add(key)
 
     if notify:
 
@@ -146,7 +163,7 @@ def main():
 
         send_line(msg)
 
-    save_history(new)
+    save_history(new_history)
 
 if __name__=="__main__":
     main()

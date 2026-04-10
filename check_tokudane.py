@@ -43,24 +43,17 @@ async def search():
             for i in range(CHECK_DAYS):
 
                 date = datetime.now() + timedelta(days=i)
-                date_str = date.strftime("%Y/%m/%d")
+                date_str = date.strftime("%Y%m%d")
                 label_date = date.strftime("%m/%d")
 
-                # トップページへ
-                await page.goto("https://www.eki-net.com/")
+                # 🔥 直接検索URL（ここが最大の修正）
+                url = f"https://www.eki-net.com/top/jrticket/seat/SeatReserveTop.action?departure={dep}&arrival={arr}&departureDate={date_str}"
 
-                # 入力（実際のフォーム操作）
-                await page.fill('input[name="departure"]', dep)
-                await page.fill('input[name="arrival"]', arr)
-                await page.fill('input[name="date"]', date_str)
+                await page.goto(url, timeout=60000)
 
-                # 検索クリック
-                await page.click('button[type="submit"]')
+                # ページ安定待ち
+                await page.wait_for_timeout(7000)
 
-                # 結果待ち
-                await page.wait_for_timeout(8000)
-
-                # 列車一覧取得
                 items = await page.locator("li").all()
 
                 trains = []
@@ -75,7 +68,7 @@ async def search():
                     if "つるぎ" in text:
                         continue
 
-                    if "30%" not in text and "35%" not in text and "40%" not in text:
+                    if "30%" not in text and "35%" not in text:
                         continue
 
                     if "空席" not in text:

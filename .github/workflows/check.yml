@@ -1,31 +1,29 @@
 name: tokudane-check
 
 on:
-
- schedule:
-  - cron: "*/10 * * * *"
-
- workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
 
 jobs:
+  run:
+    runs-on: ubuntu-latest
 
- run:
+    steps:
+    - uses: actions/checkout@v3
 
-  runs-on: ubuntu-latest
+    - uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
 
-  steps:
+    - name: Install libs
+      run: pip install -r requirements.txt
 
-  - uses: actions/checkout@v3
+    - name: Install Playwright
+      run: python -m playwright install --with-deps
 
-  - uses: actions/setup-python@v4
-    with:
-      python-version: "3.11"
-
-  - run: pip install -r requirements.txt
-
-  - run: playwright install
-
-  - run: python check_tokudane.py
-    env:
-      LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
-      LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+    - name: Run
+      run: python check_tokudane.py
+      env:
+        LINE_CHANNEL_TOKEN: ${{ secrets.LINE_CHANNEL_TOKEN }}
+        LINE_USER_ID: ${{ secrets.LINE_USER_ID }}

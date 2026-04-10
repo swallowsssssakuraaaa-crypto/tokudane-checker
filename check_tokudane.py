@@ -43,20 +43,31 @@ async def search():
             for i in range(CHECK_DAYS):
 
                 date = datetime.now() + timedelta(days=i)
-                d = date.strftime("%Y-%m-%d")
+                date_str = date.strftime("%Y/%m/%d")
+                label_date = date.strftime("%m/%d")
 
-                url = f"https://www.eki-net.com/top/jrticket/guide/reserve/?from={dep}&to={arr}&date={d}"
+                # トップページへ
+                await page.goto("https://www.eki-net.com/")
 
-                await page.goto(url)
-                await page.wait_for_timeout(7000)
+                # 入力（実際のフォーム操作）
+                await page.fill('input[name="departure"]', dep)
+                await page.fill('input[name="arrival"]', arr)
+                await page.fill('input[name="date"]', date_str)
 
-                cards = await page.locator("div").all()
+                # 検索クリック
+                await page.click('button[type="submit"]')
+
+                # 結果待ち
+                await page.wait_for_timeout(8000)
+
+                # 列車一覧取得
+                items = await page.locator("li").all()
 
                 trains = []
 
-                for c in cards:
+                for item in items:
 
-                    text = await c.inner_text()
+                    text = await item.inner_text()
 
                     if ("かがやき" not in text and "はくたか" not in text):
                         continue
@@ -70,12 +81,12 @@ async def search():
                     if "空席" not in text:
                         continue
 
-                    lines = text.split("\n")
+                    lines = [l.strip() for l in text.split("\n") if l.strip()]
 
                     try:
                         name = lines[0]
-                        time = lines[1]
-                        discount = [l for l in lines if "%" in l][0]
+                        time = next(l for l in lines if "→" in l)
+                        discount = next(l for l in lines if "%" in l)
                     except:
                         continue
 
@@ -87,7 +98,7 @@ async def search():
 
                 if trains:
                     results.append({
-                        "date": date.strftime("%m/%d"),
+                        "date": label_date,
                         "route": f"{dep}→{arr}",
                         "trains": trains
                     })
@@ -106,6 +117,7 @@ async def main():
     msg = "🚄トクだ値 発見\n\n"
 
     for r in data:
+
         msg += f"{r['date']}\n{r['route']}\n\n"
 
         for t in r["trains"]:

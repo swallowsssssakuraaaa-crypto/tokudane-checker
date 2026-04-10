@@ -14,25 +14,20 @@ ROUTES = [
 
 CHECK_DAYS = 30
 
-
 def send_line(text):
-
     headers = {
         "Authorization": f"Bearer {LINE_TOKEN}",
         "Content-Type": "application/json"
     }
-
     body = {
         "to": LINE_USER,
         "messages":[{"type":"text","text":text}]
     }
-
     requests.post(
         "https://api.line.me/v2/bot/message/push",
         headers=headers,
         json=body
     )
-
 
 async def search():
 
@@ -40,65 +35,86 @@ async def search():
 
     async with async_playwright() as p:
 
-        browser = await p.chromium.launch()
+        browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
 
-        for dep,arr in ROUTES:
+        for dep, arr in ROUTES:
 
             for i in range(CHECK_DAYS):
 
-                date = datetime.now()+timedelta(days=i)
+                date = datetime.now() + timedelta(days=i)
                 d = date.strftime("%Y-%m-%d")
 
-                url=f"https://www.eki-net.com/top/jrticket/guide/reserve/?from={dep}&to={arr}&date={d}"
+                url = f"https://www.eki-net.com/top/jrticket/guide/reserve/?from={dep}&to={arr}&date={d}"
 
                 await page.goto(url)
+                await page.wait_for_timeout(7000)
 
-                await page.wait_for_timeout(5000)
+                cards = await page.locator("div").all()
 
-                content=await page.content()
+                trains = []
 
-                lines=[]
+                for c in cards:
 
-                for l in content.split("\n"):
+                    text = await c.inner_text()
 
-                    if "かがやき" in l or "はくたか" in l:
+                    if ("かがやき" not in text and "はくたか" not in text):
+                        continue
 
-                        if "30%" in l or "35%" in l or "40%" in l:
+                    if "つるぎ" in text:
+                        continue
 
-                            lines.append(l.strip())
+                    if "30%" not in text and "35%" not in text and "40%" not in text:
+                        continue
 
-                if lines:
+                    if "空席" not in text:
+                        continue
 
-                    results.append((date.strftime("%m/%d"),dep,arr,lines))
+                    lines = text.split("\n")
+
+                    try:
+                        name = lines[0]
+                        time = lines[1]
+                        discount = [l for l in lines if "%" in l][0]
+                    except:
+                        continue
+
+                    trains.append({
+                        "name": name,
+                        "time": time,
+                        "discount": discount
+                    })
+
+                if trains:
+                    results.append({
+                        "date": date.strftime("%m/%d"),
+                        "route": f"{dep}→{arr}",
+                        "trains": trains
+                    })
 
         await browser.close()
 
     return results
 
-
 async def main():
 
-    data=await search()
+    data = await search()
 
     if not data:
         return
 
-    msg="🚄トクだ値 発見\n\n"
+    msg = "🚄トクだ値 発見\n\n"
 
-    for d,dep,arr,lines in data:
+    for r in data:
+        msg += f"{r['date']}\n{r['route']}\n\n"
 
-        msg+=f"{d}\n{dep}→{arr}\n\n"
+        for t in r["trains"]:
+            msg += f"{t['name']}\n{t['time']}\n{t['discount']}\n\n"
 
-        for l in lines:
+        msg += "\n"
 
-            msg+=l+"\n"
-
-        msg+="\n"
-
-    msg+="空席照会\nhttps://www.eki-net.com/"
+    msg += "空席照会\nhttps://www.eki-net.com/"
 
     send_line(msg)
-
 
 asyncio.run(main())
